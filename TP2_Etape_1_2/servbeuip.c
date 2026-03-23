@@ -19,7 +19,8 @@ int nb_users = 0;
 void add_or_update_user(struct in_addr ip, const char *pseudo) {
     for (int i = 0; i < nb_users; i++) {
         if (table[i].ip.s_addr == ip.s_addr) {
-            strcpy(table[i].pseudo, pseudo); 
+            strncpy(table[i].pseudo, pseudo, 49); 
+            table[i].pseudo[49] = '\0';
             return;
         }
     }
@@ -99,14 +100,15 @@ int main(int argc, char *argv[]) {
         char *payload = buffer + 6;
         int is_local = (cliAddr.sin_addr.s_addr == inet_addr("127.0.0.1"));
 
-        printf("Reçu code '%c' de %s\n", code, inet_ntoa(cliAddr.sin_addr));
-
         switch (code) {
             case '1': 
                 if (strcmp(payload, my_pseudo) != 0) {
                     add_or_update_user(cliAddr.sin_addr, payload); 
                     sprintf(out_msg, "2BEUIP%s", my_pseudo);
-                    sendto(sid, out_msg, strlen(out_msg), 0, (struct sockaddr *)&cliAddr, addrLen);
+                    
+                    struct sockaddr_in replyAddr = cliAddr;
+                    replyAddr.sin_port = htons(PORT);
+                    sendto(sid, out_msg, strlen(out_msg), 0, (struct sockaddr *)&replyAddr, sizeof(replyAddr));
                 }
                 break;
 
@@ -132,8 +134,13 @@ int main(int argc, char *argv[]) {
                     for (int i = 0; i < nb_users; i++) {
                         if (strcmp(table[i].pseudo, target_pseudo) == 0) {
                             sprintf(out_msg, "9BEUIP%s", msg);
-                            struct sockaddr_in targetAddr = cliAddr;
+                            
+                            struct sockaddr_in targetAddr;
+                            memset(&targetAddr, 0, sizeof(targetAddr));
+                            targetAddr.sin_family = AF_INET;
+                            targetAddr.sin_port = htons(PORT); 
                             targetAddr.sin_addr = table[i].ip;
+                            
                             sendto(sid, out_msg, strlen(out_msg), 0, (struct sockaddr *)&targetAddr, sizeof(targetAddr));
                             found = 1;
                             break;
@@ -165,7 +172,12 @@ int main(int argc, char *argv[]) {
             case '5': 
                 if (is_local) {
                     sprintf(out_msg, "9BEUIP%s", payload); 
-                    struct sockaddr_in targetAddr = cliAddr;
+
+                    struct sockaddr_in targetAddr;
+                    memset(&targetAddr, 0, sizeof(targetAddr));
+                    targetAddr.sin_family = AF_INET;
+                    targetAddr.sin_port = htons(PORT); 
+                    
                     for (int i = 0; i < nb_users; i++) {
                         targetAddr.sin_addr = table[i].ip;
                         sendto(sid, out_msg, strlen(out_msg), 0, (struct sockaddr *)&targetAddr, sizeof(targetAddr)); 
@@ -175,14 +187,15 @@ int main(int argc, char *argv[]) {
                 break;
 
             case '0': 
-                remove_user(cliAddr.sin_addr); 
-                printf(" Utilisateur déconnecté: %s\n", payload); /*  */
                 if (is_local) {
                     sprintf(out_msg, "0BEUIP%s", my_pseudo);
-                    sendto(sid, out_msg, strlen(out_msg), 0, (struct sockaddr *)&bcastAddr, sizeof(bcastAddr)); /* [cite: 113] */
+                    sendto(sid, out_msg, strlen(out_msg), 0, (struct sockaddr *)&bcastAddr, sizeof(bcastAddr));
                     printf("Arrêt du serveur BEUIP.\n");
                     close(sid);
                     exit(0);
+                } else {
+                    remove_user(cliAddr.sin_addr); 
+                    printf("Utilisateur déconnecté: %s\n", payload);
                 }
                 break;
         }
