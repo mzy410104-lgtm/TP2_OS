@@ -4,7 +4,7 @@ Voici la traduction complète du README.md en français, prête à être copiée
 
 Polytech OS User - TP2 : Protocole BEUIP
 
-👥 Auteurs
+Auteurs
 
 MA Zhaoyi
 
