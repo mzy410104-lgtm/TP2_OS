@@ -1,6 +1,6 @@
 CC = gcc
-CFLAGS = -Wall -Werror -g -DTRACE -pthread
-LDFLAGS = -lreadline -pthread
+CFLAGS = -Wall -Werror -g 
+LDFLAGS = -lreadline 
 
 TARGET = biceps
 OBJS = biceps.o gescom.o creme.o
